@@ -18,11 +18,14 @@ def file_to_array(filename, silent=False):
     return input_array
 
 
-def file_as_string(filename):
-    fp = get_file_and_print(filename)
+def file_as_string(filename, joined=False, silent=False):
+    fp = get_file_and_print(filename, silent)
     input_iterable = map(lambda x: x.replace("\n", ""), fp.readlines())
-    input = list(input_iterable)[0]
-    return input
+
+    input_array = list(input_iterable)
+    if not joined:
+        return input_array[0]
+    return "".join(input_array)
 
 
 def file_to_subarray(filename):
