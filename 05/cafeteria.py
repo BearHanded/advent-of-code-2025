@@ -12,8 +12,8 @@ def total_fresh(filename):
     total = 0
 
     for ingredient in available:
-        for fresh_range in fresh:
-            if ingredient in range(fresh_range[0], fresh_range[1] + 1):
+        for (range_start, range_end) in fresh:
+            if ingredient in range(range_start, range_end + 1):
                 total += 1
                 break
     print("Total Fresh:", total)
@@ -24,17 +24,15 @@ def merge_fresh(fresh):
     merging = True
     while merging:
         merging = False
-        for a_idx, a in enumerate(fresh):
-            for b_idx, b in enumerate(fresh[a_idx + 1:]):
-                print("comparing", a, b)
-                # lower bound inside or upper bound inside
-                if b[0] <= a[0] <= b[1] or b[0] <= a[1] <= b[1]:
+        for a_idx, (a_start, a_end) in enumerate(fresh):
+            for b_idx, (b_start, b_end) in enumerate(fresh[a_idx + 1:]):
+                if b_start <= a_start <= b_end \
+                        or b_start <= a_end <= b_end \
+                        or a_start <= b_start <= a_end \
+                        or a_start <= b_end <= a_end:
                     merging = True
-                    merged = (min(a[0], b[0]), max(a[1], b[1]))
-                    fresh[a_idx] = merged
+                    fresh[a_idx] = (min(a_start, b_start), max(a_end, b_end))
                     fresh.pop(a_idx + b_idx + 1)
-                    print("Merging,", a, b)
-                    print("   Merged:", merged)
                     break
             if merging:
                 break
@@ -42,13 +40,10 @@ def merge_fresh(fresh):
 
 def all_fresh(filename):
     lines = file_to_array(filename)
-    divider = lines.index("")
-    fresh = [tuple(int(i) for i in endpoints.split("-")) for endpoints in lines[:divider]]
+    fresh = [tuple(int(i) for i in endpoints.split("-")) for endpoints in lines[:lines.index("")]]
     fresh = merge_fresh(fresh)
 
-    total = 0
-    for fresh_range in fresh:
-        total += fresh_range[1] - fresh_range[0] + 1
+    total = sum(end - start + 1 for start, end in fresh)
     print("Total Fresh:", total)
     return total
 
@@ -56,5 +51,4 @@ assert_equals(total_fresh(TEST_INPUT), 3)
 total_fresh(INPUT)
 
 assert_equals(all_fresh(TEST_INPUT), 14)
-# all_fresh(INPUT)
-# 350339340818552 - too high?
+all_fresh(INPUT)
