@@ -1,7 +1,3 @@
-import math
-
-from Cython.Shadow import pointer
-
 from util import assert_equals, file_to_array
 
 TEST_INPUT = "test_input.txt"
@@ -51,12 +47,13 @@ def find_largest_inside(filename):
     # consider fits
     for idx, (a_x, a_y) in enumerate(tiles):
         print(f"Working {idx}/{len(tiles)}")
-        for b_x, b_y in tiles[idx + 1:]:
-            potential_area = max(largest_area, (abs(b_x - a_x) + 1) * (abs(b_y - a_y) + 1))
+        potential_areas = [(max(largest_area, (abs(p[0] - a_x) + 1) * (abs(p[1] - a_y) + 1)), p) for p in tiles[idx+1:]]
+        for potential_area, (b_x, b_y) in sorted(potential_areas, reverse=True):
             if potential_area < largest_area:
                 continue
 
             area_edges = connect_points((a_x, a_y), (b_x, b_y))
+            all_edges = area_edges | outer_tiles
 
             inside_fit = True
             for y in range(min(a_y, b_y), max(a_y, b_y) + 1):
@@ -64,7 +61,20 @@ def find_largest_inside(filename):
                 on_tile_edge = False
                 inside_area = False
                 inside_tiles = False
-                for x in range(min_x, max_x + 1): # todo this range
+
+                row_area_xs = [e[0] for e in area_edges if e[1] == y]
+                row_tiles_xs = [t[0] for t in outer_tiles if t[1] == y]
+                # print(row_area_xs, row_tiles_xs)
+                if len(row_tiles_xs) == 0 or (min(row_area_xs) < min(row_tiles_xs)) or (max(row_area_xs) > max(row_tiles_xs)):
+                    inside_fit = False
+                    break
+
+                x_targets = {x_candidate for (x_candidate, y_candidate) in all_edges if y_candidate == y}
+                x_targets.update([i+1 for i in x_targets]) # allow 1 piece of whitespace to trigger latch
+                x_targets = sorted([i for i in x_targets if i <= max_x]) # cut it off at end of area, we don't need more
+
+                for x in x_targets: # todo this range
+                # for x in range(min_x, max_x + 2): # todo this range
                     # Check area
                     if (x, y) in area_edges:
                         on_area_edge = True
