@@ -1,3 +1,5 @@
+from requests.packages import target
+
 from util import assert_equals, file_to_array
 
 TEST_INPUT = "test_input.txt"
@@ -26,6 +28,36 @@ def connect_points(a, b):
 
     return points
 
+def intersects(tile_edge, area_edge):
+    print(tile_edge)
+    t1, t2 = sorted(tile_edge)
+    a1, a2 = sorted(area_edge)
+
+    print("-> ", t1, t2)
+    print("-> ", a1, a2)
+
+    # if area_edge is horizontal and tile is vertical
+    if a1[0] < t1[0] < a2[0] and a1[0] < t2[0] < a2[0] and \
+        t1[1] < a1[1] < t2[1] and t1[1] < a2[1] < t2[1]:
+        print("HIT, Horizontal", tile_edge, area_edge)
+        return True
+    elif a1[1] < t1[1] < a2[1] and a1[1] < t2[1] < a2[1] and \
+        t1[0] < a1[0] < t2[0] and t1[0] < a2[0] < t2[0]: # rotate
+        print("HIT, Vertical", tile_edge, area_edge)
+        return True
+
+    return False
+
+# Lightweight version of our future search that will just check the corners vs their row
+def check_corners(a, b, outer_tiles):
+    a_row_tile_xs = [t[0] for t in outer_tiles if t[1] == a[1]]
+    b_row_tile_xs = [t[0] for t in outer_tiles if t[1] == b[1]]
+
+    return len(a_row_tile_xs) == 0 or len(b_row_tile_xs) == 0 \
+        or (min(a[0], b[0]) < min(a_row_tile_xs)) or (max(a[0], b[0]) > max(a_row_tile_xs)) \
+        or (min(a[0], b[0]) < min(b_row_tile_xs)) or (max(a[0], b[0]) > max(b_row_tile_xs))
+
+
 def find_largest_inside(filename):
     tiles = [tuple(int(i) for i in row.split(",")) for row in file_to_array(filename)]
     tiles.append(tiles[0])
@@ -48,12 +80,17 @@ def find_largest_inside(filename):
     for idx, (a_x, a_y) in enumerate(tiles):
         print(f"Working {idx}/{len(tiles)}")
         potential_areas = [(max(largest_area, (abs(p[0] - a_x) + 1) * (abs(p[1] - a_y) + 1)), p) for p in tiles[idx+1:]]
-        for potential_area, (b_x, b_y) in sorted(potential_areas, reverse=True):
-            if potential_area < largest_area:
-                continue
 
-            area_edges = connect_points((a_x, a_y), (b_x, b_y))
-            all_edges = area_edges | outer_tiles
+        for potential_area, (b_x, b_y) in sorted(potential_areas, reverse=True):
+            if potential_area <= largest_area:
+                continue
+            if check_corners((a_x, a_y), (b_x, b_y), outer_tiles):
+                continue
+            # Todo optimize? do we need all of these?
+            # {(a_x, a_y), (a_x, b_y), (b_x, a_y), (b_x, b_y)}
+            area_edges = connect_points((a_x, a_y), (a_x, b_y))
+            area_edges.update(connect_points((b_x, a_y), (b_x, b_y)))
+            target_edges = area_edges | outer_tiles
 
             inside_fit = True
             for y in range(min(a_y, b_y), max(a_y, b_y) + 1):
@@ -62,14 +99,7 @@ def find_largest_inside(filename):
                 inside_area = False
                 inside_tiles = False
 
-                row_area_xs = [e[0] for e in area_edges if e[1] == y]
-                row_tiles_xs = [t[0] for t in outer_tiles if t[1] == y]
-                # print(row_area_xs, row_tiles_xs)
-                if len(row_tiles_xs) == 0 or (min(row_area_xs) < min(row_tiles_xs)) or (max(row_area_xs) > max(row_tiles_xs)):
-                    inside_fit = False
-                    break
-
-                x_targets = {x_candidate for (x_candidate, y_candidate) in all_edges if y_candidate == y}
+                x_targets = {x_candidate for (x_candidate, y_candidate) in target_edges if y_candidate == y}
                 x_targets.update([i+1 for i in x_targets]) # allow 1 piece of whitespace to trigger latch
                 x_targets = sorted([i for i in x_targets if i <= max_x]) # cut it off at end of area, we don't need more
 
@@ -77,7 +107,7 @@ def find_largest_inside(filename):
                 # for x in range(min_x, max_x + 2): # todo this range
                     # Check area
                     if (x, y) in area_edges:
-                        on_area_edge = True
+                        on_area_edge = not on_area_edge
                     elif on_area_edge:
                         # left an edge, flip, unlatch
                         on_area_edge = False
