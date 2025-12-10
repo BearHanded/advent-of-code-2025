@@ -83,6 +83,7 @@ def find_largest_inside(filename):
 
                     if (on_area_edge or inside_area) and not (on_tile_edge or inside_tiles):
                         inside_fit = False
+                        break
                 if not inside_fit:
                     break
             if inside_fit:
