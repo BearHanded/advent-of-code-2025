@@ -33,8 +33,8 @@ def intersects(tile_edge, area_edge):
     t1, t2 = sorted(tile_edge)
     a1, a2 = sorted(area_edge)
 
-    print("-> ", t1, t2)
-    print("-> ", a1, a2)
+    # print("-> ", t1, t2)
+    # print("-> ", a1, a2)
 
     # if area_edge is horizontal and tile is vertical
     if a1[0] < t1[0] < a2[0] and a1[0] < t2[0] < a2[0] and \
@@ -62,15 +62,18 @@ def find_largest_inside(filename):
     tiles = [tuple(int(i) for i in row.split(",")) for row in file_to_array(filename)]
     tiles.append(tiles[0])
     outer_tiles = set()
+    outer_segments = set()
 
     previous = tiles[0]
     outer_tiles.add(previous)
+    outer_segments.add((tiles[-1], tiles[0]))
     min_x = 9999999
     max_x = 0
 
     # build edges
     for tile in tiles[1:]:
         outer_tiles.update(connect_points(previous, tile))
+        outer_segments.add((previous, tile))
         previous = tile
         min_x = min(tile[0], min_x)
         max_x = max(tile[0], max_x)
@@ -86,49 +89,61 @@ def find_largest_inside(filename):
                 continue
             if check_corners((a_x, a_y), (b_x, b_y), outer_tiles):
                 continue
+            print("...")
+
             # Todo optimize? do we need all of these?
             # {(a_x, a_y), (a_x, b_y), (b_x, a_y), (b_x, b_y)}
-            area_edges = connect_points((a_x, a_y), (a_x, b_y))
-            area_edges.update(connect_points((b_x, a_y), (b_x, b_y)))
-            target_edges = area_edges | outer_tiles
-
+            area_segments =  [((a_x, a_y), (a_x, b_y)), ((a_x, b_y), (b_x, b_y)), ((a_x, a_y), (b_x, a_y)), ((b_x, a_y), (b_x, b_y))]
             inside_fit = True
-            for y in range(min(a_y, b_y), max(a_y, b_y) + 1):
-                on_area_edge = False
-                on_tile_edge = False
-                inside_area = False
-                inside_tiles = False
 
-                x_targets = {x_candidate for (x_candidate, y_candidate) in target_edges if y_candidate == y}
-                x_targets.update([i+1 for i in x_targets]) # allow 1 piece of whitespace to trigger latch
-                x_targets = sorted([i for i in x_targets if i <= max_x]) # cut it off at end of area, we don't need more
 
-                for x in x_targets: # todo this range
-                # for x in range(min_x, max_x + 2): # todo this range
-                    # Check area
-                    if (x, y) in area_edges:
-                        on_area_edge = not on_area_edge
-                    elif on_area_edge:
-                        # left an edge, flip, unlatch
-                        on_area_edge = False
-                        inside_area = not inside_area
 
-                    # Check tiles
-                    if (x, y) in outer_tiles:
-                        on_tile_edge = True
-                    elif on_tile_edge:
-                        # left an edge, flip, unlatch
-                        on_tile_edge = False
-                        inside_tiles = not inside_tiles # left an edge, flip
+            # area_edges = connect_points((a_x, a_y), (a_x, b_y))
+            # area_edges.update(connect_points((b_x, a_y), (b_x, b_y)))
+            # target_edges = area_edges | outer_tiles
 
-                    if (on_area_edge or inside_area) and not (on_tile_edge or inside_tiles):
+            for area_segment in area_segments:
+                for outer_segment in outer_segments:
+                    if intersects(outer_segment, area_segment):
                         inside_fit = False
                         break
-                if not inside_fit:
-                    break
+            # for y in range(min(a_y, b_y), max(a_y, b_y) + 1):
+            #     on_area_edge = False
+            #     on_tile_edge = False
+            #     inside_area = False
+            #     inside_tiles = False
+            #
+            #     x_targets = {x_candidate for (x_candidate, y_candidate) in target_edges if y_candidate == y}
+            #     x_targets.update([i+1 for i in x_targets]) # allow 1 piece of whitespace to trigger latch
+            #     x_targets = sorted([i for i in x_targets if i <= max_x]) # cut it off at end of area, we don't need more
+            #
+            #     for x in x_targets: # todo this range
+            #     # for x in range(min_x, max_x + 2): # todo this range
+            #         # Check area
+            #         if (x, y) in area_edges:
+            #             on_area_edge = not on_area_edge
+            #         elif on_area_edge:
+            #             # left an edge, flip, unlatch
+            #             on_area_edge = False
+            #             inside_area = not inside_area
+            #
+            #         # Check tiles
+            #         if (x, y) in outer_tiles:
+            #             on_tile_edge = True
+            #         elif on_tile_edge:
+            #             # left an edge, flip, unlatch
+            #             on_tile_edge = False
+            #             inside_tiles = not inside_tiles # left an edge, flip
+            #
+            #         if (on_area_edge or inside_area) and not (on_tile_edge or inside_tiles):
+            #             inside_fit = False
+            #             break
+            #     if not inside_fit:
+            #         break
             if inside_fit:
                 print("   Candidate:", potential_area)
                 largest_area = potential_area
+                break
 
     # print(outer_tiles)
     print("Largest area:", largest_area)
