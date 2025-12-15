@@ -57,6 +57,6 @@ def svr_routes(filename):
 assert_equals(total_routes(TEST_INPUT), 5)
 total_routes(INPUT)
 
-# Pt 1
+# Pt 2
 assert_equals(svr_routes(TEST_INPUT_2), 2)
 svr_routes(INPUT)
